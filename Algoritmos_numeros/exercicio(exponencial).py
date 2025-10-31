@@ -16,7 +16,7 @@ def exponencial(a, n):
     pass
 
 
-print(exponencial(30,5))
+print(exponencial(3,5))
 
 #1125899906842624
 #1073741824
