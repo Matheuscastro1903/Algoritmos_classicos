@@ -30,19 +30,22 @@ fib(4)=2+1=3
 
 fib(5)=3+2
 """
-
+"""
 def fibonacci(n):
     if n == 0:
+    
         return 0
     elif n == 1:
+        
         return 1
     else:
         return fibonacci(n - 1) + fibonacci(n - 2)
+        
     
 
-print(fibonacci(10))
+print(fibonacci(5))
 
-
+"""
 """
 TESTE n=10
 
@@ -75,3 +78,29 @@ fib(8)=13+8=21
 fib(9)=21+13=34
 fib(10)=34+21=55
 """
+
+
+def fibonacci(n):
+    lista=[]#Lista para armazenar a sequência
+
+    #Dois primeiros termos da sequência
+    a=0 
+    b=1 
+    
+    for i in range(n + 1): #só irá controlar a quantidade de repetições do loop
+        lista.append(a)  #Adiciona o termo atual à lista
+
+        temp=b
+        b=a+b
+        a=temp
+        # quando faz nesse formato de tupla,
+        #é como se tivesse atualizandos os valores na mesma hora,então considera os valores antigos
+    
+    return lista
+
+print(fibonacci(5))
+
+
+#execução-->
+
+
