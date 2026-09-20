@@ -52,6 +52,8 @@ class ArvoreBinaria:
         else:
             y.direita = novo_nodo
 
+        return novo_nodo
+
     def minimum(self, x):
     #essa função busca procurar o min a partirr de um nodo específico ou subnodo,não precisando passar sempre a raiz
     # Proteção caso a árvore não tenha sido populada ainda
@@ -148,6 +150,7 @@ class ArvoreBinaria:
 
         if getLeft(x) is None and getRight(x) is None:
             y = getFather(x)
+            pai_antigo=getFather(x)
             
             # Proteção: Se a folha não tem pai, ela é a única raiz da árvore
             if y is None:
@@ -158,8 +161,10 @@ class ArvoreBinaria:
                 y.esquerda = None
             else:
                 y.direita = None
-                
-            return
+
+
+            #O pai do nodo que foi fisicamente excluído
+            return pai_antigo
 
         #caso 2-->nodo possui exatamente um filho(nodo ponte)
         #Ação: Realizamos um "bypass" estrutural. Desconectamos o nodo alvo e ligamos o pai 
@@ -176,6 +181,7 @@ class ArvoreBinaria:
 
             #pai de x
             y = getFather(x)
+            pai_antigo=getFather(x)
             
             #filho de x agora referencia o avô(pai de x)
             filho.pai = y
@@ -188,12 +194,99 @@ class ArvoreBinaria:
                 y.esquerda = filho
             else:
                 y.direita = filho
-                
-            return
 
-         #caso 3-->nodo completo(possui 2 filhos)
+            #O pai do nodo que foi fisicamente excluído
+            return pai_antigo
+
+    # ==========================================
+            # CASO 3: O Nodo completo (possui 2 filhos)
+            # Baseado na arquitetura exigida pela literatura[cite: 1]
+            # ==========================================
+            # ESTADO INICIAL (Exemplo: Removendo o 50):
+            #           [50] (x) <-- ALVO DA REMOÇÃO
+            #          /    \
+            #       [20]    [80] (pai_original_y)
+            #              /    \
+            #   (y) ->  [60]    [90]
+            #             \
+            #             [70] (filho_dir_y)
+            # ==========================================
         elif getLeft(x) is not None and getRight(x) is not None:
-            pass
+                
+                # 1. Encontra o sucessor (y) e o pai original dele
+                # O sucessor é matematicamente o menor valor da subárvore direita[cite: 1].
+                y = self.sucessor(x)
+                pai_original_y = getFather(y)
+                pai_antigo=getFather(x)
+
+                # 2. Isola o sucessor (O "Bypass" Interno)
+                # Se 'y' não for o filho imediato de 'x', ele precisa ser solto sem perder seu filho direito[cite: 1].
+                if pai_original_y != x:
+                    filho_dir_y = getRight(y)
+                    
+                    # O pai original (80) adota o filho direito de y (70)
+                    pai_original_y.esquerda = filho_dir_y
+                    if filho_dir_y is not None:
+                        filho_dir_y.pai = pai_original_y
+                    
+                    # ==========================================
+                    # ESTADO APÓS O BYPASS:
+                    #           [50] (x)
+                    #          /    \
+                    #       [20]    [80] 
+                    #              /    \
+                    #            [70]   [90]
+                    # 
+                    #   [60] (y) -> flutuando na memória
+                    # ==========================================
+                    
+                    # O sucessor (60) assume toda a subárvore direita original do alvo (50)[cite: 1]
+                    y.direita = getRight(x)
+                    y.direita.pai = y
+
+                # ==========================================
+                # ESTADO PREPARADO PARA A GRANDE SUBSTITUIÇÃO:
+                #           [50] (x)
+                #          /    
+                #       [20]      [60] (y)
+                #                   \
+                #                   [80] 
+                #                  /    \
+                #                [70]   [90]
+                # ==========================================
+
+                # 3. A Grande Substituição no Topo
+                # O sucessor 'y' (60) assume o braço esquerdo intacto de 'x' (20)[cite: 1]
+                y.esquerda = getLeft(x)
+                y.esquerda.pai = y
+                
+                # 'y' se conecta ao teto (ao antigo pai de 'x')[cite: 1]
+                pai_x = getFather(x)
+                y.pai = pai_x
+
+                # Oficializa o sucessor na posição exata que o alvo ocupava[cite: 1]
+                if pai_x is None:
+                    self.root = y
+                elif x == getLeft(pai_x):
+                    pai_x.esquerda = y
+                else:
+                    pai_x.direita = y
+                    
+                # ==========================================
+                # ESTADO FINAL DA ÁRVORE:
+                #           [60] (y) <-- O NOVO LÍDER ASSUME
+                #          /    \
+                #       [20]    [80] 
+                #              /    \
+                #            [70]   [90]
+                # (O 50 é deletado da memória)
+                # ==========================================
+
+
+                #PARA O CASO 3,RETORNARMOS
+                #O pai original do sucessor (ou o próprio sucessor, 
+                # caso ele fosse o filho imediato do nodo alvo).
+                return pai_original_y if pai_original_y != x else y
 
         
 
@@ -360,3 +453,74 @@ if __name__ == "__main__":
     assert getInfo(arvore_raiz_um_filho.root) == 5
     assert getFather(arvore_raiz_um_filho.root) is None
     print("Caso 2: raiz substituída pelo único filho")
+
+
+
+
+    # ==========================================
+    # TESTE 1: Caso 3 na Raiz com sucessor "enterrado"
+    # O 50 sai. O 60 (sucessor) sobe. O buraco físico fica onde o 60 estava.
+    # O pai original do 60 era o 80. Logo, o retorno deve ser o 80.
+    # ==========================================
+    arvore_caso3_bypass = ArvoreBinaria()
+    for v in [50, 20, 80, 60, 90, 70]:
+        arvore_caso3_bypass.inserir(v)
+        
+    ponto_partida_1 = arvore_caso3_bypass.remover(arvore_caso3_bypass.root)
+    
+    # Validações da nova coroa
+    assert getInfo(arvore_caso3_bypass.root) == 60
+    assert getInfo(getLeft(arvore_caso3_bypass.root)) == 20
+    assert getInfo(getRight(arvore_caso3_bypass.root)) == 80
+    assert getFather(arvore_caso3_bypass.root) is None
+    
+    # Validação do Bypass
+    nodo_80 = getRight(arvore_caso3_bypass.root)
+    assert getInfo(getLeft(nodo_80)) == 70
+    
+    # Validação da Modularização (O retorno aponta para o lugar certo?)
+    assert getInfo(ponto_partida_1) == 80
+    print("Caso 3 (Teste 1): Raiz removida. Retorno correto aponta para o nodo 80.")
+
+
+    # ==========================================
+    # TESTE 2: Caso 3 na Raiz com sucessor sendo o filho imediato
+    # O 50 sai. O 70 (sucessor e filho imediato) sobe.
+    # Como o 70 assumiu o lugar e o buraco era o antigo braço direito dele próprio, o retorno deve ser o 70.
+    # ==========================================
+    arvore_caso3_imediato = ArvoreBinaria()
+    for v in [50, 20, 70, 80]:
+        arvore_caso3_imediato.inserir(v)
+        
+    ponto_partida_2 = arvore_caso3_imediato.remover(arvore_caso3_imediato.root)
+    
+    # Validações estruturais
+    assert getInfo(arvore_caso3_imediato.root) == 70
+    assert getInfo(getLeft(arvore_caso3_imediato.root)) == 20
+    assert getInfo(getRight(arvore_caso3_imediato.root)) == 80
+    
+    # Validação da Modularização
+    assert getInfo(ponto_partida_2) == 70
+    print("Caso 3 (Teste 2): Raiz removida. Retorno correto aponta para o nodo 70.")
+
+
+    # ==========================================
+    # TESTE 3: Caso 3 em um Nodo Interno (Galho esquerdo)
+    # Alvo: 50. Sucessor: 60. Pai original do 60: 80.
+    # ==========================================
+    arvore_caso3_interno = ArvoreBinaria()
+    for v in [100, 50, 150, 20, 80, 60, 90, 70]:
+        arvore_caso3_interno.inserir(v)
+        
+    alvo_interno = getLeft(arvore_caso3_interno.root) # Captura o nodo 50
+    ponto_partida_3 = arvore_caso3_interno.remover(alvo_interno)
+    
+    # Validações estruturais
+    novo_filho_esq_raiz = getLeft(arvore_caso3_interno.root)
+    assert getInfo(novo_filho_esq_raiz) == 60
+    assert getInfo(getLeft(novo_filho_esq_raiz)) == 20
+    assert getInfo(getRight(novo_filho_esq_raiz)) == 80
+    
+    # Validação da Modularização
+    assert getInfo(ponto_partida_3) == 80
+    print("Caso 3 (Teste 3): Nodo interno removido. Retorno correto aponta para o nodo 80.")
