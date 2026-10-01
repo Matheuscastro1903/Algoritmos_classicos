@@ -4,7 +4,7 @@ from collections import deque
 class Vertice:
     def __init__(self, id):
         self.id = id
-        self.cor =  'BRANCO'
+        self.cor =  'Branco'
         self.pi = None
         self.d = None
         self.f = None
@@ -99,7 +99,7 @@ class Grafo:
                         v.pi = u              # O pai deste vizinho v é o vértice u
             
                     #Adiciona na fila para que seus próprios vizinhos sejam lidos no futuro
-                    Q.append(v)
+                        Q.append(v)
 
                 # Após esgotar o loop for (todos os vizinhos foram inspecionados), o pai finaliza
                 u.cor = 'Preto'
@@ -219,6 +219,102 @@ class Grafo:
 
 
 
+
+# ==============================================================================
+# BATERIA DE TESTES - BFS, DFS, ORDENAMENTO TOPOLÓGICO E TRANSPOSTO
+# ==============================================================================
+
+def executar_testes_buscas():
+    print("="*60)
+    print("TESTE 1: BUSCA EM LARGURA (BFS) - Caminho Mais Curto (Sem Pesos)")
+    print("="*60)
+    # Grafo não direcionado clássico
+    g_bfs = Grafo(direcionado=False)
+    arestas_bfs = [
+        ('r', 's'), ('r', 'v'), 
+        ('s', 'w'), 
+        ('w', 't'), ('w', 'x'), 
+        ('t', 'u'), ('t', 'x'), 
+        ('x', 'y'), ('u', 'y')
+    ]
+    for u, v in arestas_bfs:
+        g_bfs.adicionar_aresta(u, v)
+
+    origem = 's'
+    g_bfs.busca_em_largura(origem)
+    
+    print(f"Distâncias a partir da origem '{origem}':")
+    for id_v, vertice in g_bfs.vertices.items():
+        distancia = vertice.d if vertice.d != float('inf') else 'Inatingível'
+        pai = vertice.pi.id if vertice.pi else 'None'
+        print(f"Vértice {id_v} | Distância: {distancia} | Pai: {pai}")
+
+
+    print("\n" + "="*60)
+    print("TESTE 2: BUSCA EM PROFUNDIDADE (DFS) - Tempos de Descoberta")
+    print("="*60)
+    # Grafo direcionado para verificar tempos de (d)escoberta e (f)inalização
+    g_dfs = Grafo(direcionado=True)
+    arestas_dfs = [
+        ('u', 'v'), ('u', 'x'),
+        ('v', 'y'),
+        ('y', 'x'),
+        ('w', 'y'), ('w', 'z'),
+        ('z', 'z') # Auto-ciclo
+    ]
+    for orig, dest in arestas_dfs:
+        g_dfs.adicionar_aresta(orig, dest)
+
+    g_dfs.dfs_principal()
+    
+    print("Tempos [Descoberta / Finalização]:")
+    for id_v, vertice in g_dfs.vertices.items():
+        print(f"Vértice {id_v} | d: {vertice.d:02d} | f: {vertice.f:02d} | Cor: {vertice.cor}")
+
+
+    print("\n" + "="*60)
+    print("TESTE 3: ORDENAMENTO TOPOLÓGICO - O Problema de Vestir Roupas")
+    print("="*60)
+    # Exemplo clássico do Cormen: Ordem de vestir roupas (DAG - Grafo Acíclico Direcionado)
+    g_topo = Grafo(direcionado=True)
+    dependencias_roupas = [
+        ('Cueca', 'Calça'), ('Cueca', 'Sapato'),
+        ('Meia', 'Sapato'),
+        ('Calça', 'Sapato'), ('Calça', 'Cinto'),
+        ('Camisa', 'Cinto'), ('Camisa', 'Gravata'),
+        ('Gravata', 'Paletó'),
+        ('Cinto', 'Paletó')
+        # 'Relógio' é inserido solto (adicionado apenas como vértice)
+    ]
+    for u, v in dependencias_roupas:
+        g_topo.adicionar_aresta(u, v)
+    g_topo.adicionar_vertice('Relógio')
+
+    ordem = g_topo.ordenamento_topologico()
+    print("Ordem correta para se vestir (da esquerda para a direita):")
+    print(" -> ".join(ordem))
+
+
+    print("\n" + "="*60)
+    print("TESTE 4: GRAFO TRANSPOSTO - Invertendo as Setas")
+    print("="*60)
+    g_transposto = g_topo.gerar_grafo_transposto()
+    
+    print("Arestas Originais (Roupa -> Dependente):")
+    for u in g_topo.Adj:
+        vizinhos = [v.id for v in g_topo.Adj[u]]
+        if vizinhos:
+            print(f"{u} aponta para: {vizinhos}")
+
+    print("\nArestas no Grafo Transposto (Dependente -> Roupa):")
+    for u in g_transposto.Adj:
+        vizinhos = [v.id for v in g_transposto.Adj[u]]
+        if vizinhos:
+            print(f"{u} aponta para: {vizinhos}")
+
+
+if __name__ == "__main__":
+    executar_testes_buscas()
 
 
 # =====================================================================
