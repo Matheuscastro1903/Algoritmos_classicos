@@ -215,6 +215,20 @@ class ArvoreRubroNegra(ArvoreBinaria):
 
                 # ==========================================
                 # CASO 1: Tio é Vermelho (Apenas repintura)
+
+
+                """
+                                ANTES (Conflito!)                    DEPOIS (Caso 1)
+                                 =================                    =================
+                
+                                Avô(P)                               Avô(V) <--- O [N] sobe para cá
+                                /      \                             /      \
+                            Pai(V)    Tio(V)         ====>       Pai(P)    Tio(P)
+                            /                                    /
+                        [N](V)                                  (V)
+
+
+                """
                 # ==========================================
                 if getCor(tio) == "V":
                     pai.cor = "P"
@@ -227,6 +241,19 @@ class ArvoreRubroNegra(ArvoreBinaria):
                 # ==========================================
                 else:
                     # CASO 2: Topologia em Zigue-Zague (Nó cresce para a direita)
+                    """
+            ANTES (Zigue-Zague)                  DEPOIS (Transformado em Linha Reta)
+      ===================                  ===================================
+
+           Avô(P)                               Avô(P)
+          /      \                             /      \
+      Pai(V)    Tio(P)         ====>     Pai(V)      Tio(P)  <-- (Antigo nó inserido)
+          \                               /
+         [N](V)                        [N](V)                <-- (Antigo Pai)
+                                 (O ponteiro desceu com a rotação)
+                    """
+
+
                     if nodo == getRight(pai):
                         nodo = pai
                         self.left_rotate(nodo)
@@ -248,6 +275,10 @@ class ArvoreRubroNegra(ArvoreBinaria):
                 
                 # ==========================================
                 # CASO 1: Tio é Vermelho (mesma coisa)
+
+
+
+                
                 # ==========================================
                 if getCor(tio) == "V":
                     pai.cor = "P"
@@ -260,6 +291,22 @@ class ArvoreRubroNegra(ArvoreBinaria):
                 # ==========================================
                 else:
                     # CASO 2: Topologia em Zigue-Zague (Nó cresce para a esquerda)
+
+                    """
+                                ANTES (Zigue-Zague)                  DEPOIS (Transformado em Linha Reta)
+                            ===================                  ===================================
+
+                                Avô(P)                               Avô(P)
+                                /      \                             /      \
+                            Pai(V)    Tio(P)         ====>     Pai(V)      Tio(P)  <-- (Antigo nó inserido)
+                                \                               /
+                                [N](V)                        [N](V)                <-- (Antigo Pai)
+
+                                 (O ponteiro desceu com a rotação)
+                    
+                 
+                    
+                    """
                     if nodo == getLeft(pai):
                         nodo = pai
                         self.right_rotate(nodo)

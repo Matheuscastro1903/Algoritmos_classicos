@@ -210,8 +210,68 @@ class Grafo:
 
 
     def componente_fortemente_conectado(self):
-        #entender o objetivo e como implementar
-        pass
+        """
+        Algoritmo de Kosaraju para encontrar Componentes Fortemente Conectados (CFCs).
+        Retorna uma lista de listas, onde cada sublista contém os IDs dos vértices de um CFC.
+        """
+        
+        
+        # Roda a DFS completa no grafo original. Isso preencherá os atributos 'd' e 'f' 
+        # de todos os vértices corretamente.
+        self.dfs_principal()
+        
+        # Extrai os vértices e os ordena com base no tempo de finalização (f) de forma decrescente.
+        # O vértice que terminou por último (maior 'f') ficará no índice 0 da lista.
+        vertices_ordenados = sorted(self.vertices.values(), key=lambda v: v.f, reverse=True)
+        ordem_de_busca = []
+        for v in vertices_ordenados:
+            ordem_de_busca.append(v.id)
+            
+        
+        # FASE 2: Inversão do Grafo
+        # Gera o universo espelhado onde as pontes de mão única estão na contramão.
+        grafo_t = self.gerar_grafo_transposto()
+        
+        #Prepara o terreno no grafo transposto (garante que todos estão Brancos para a nova busca)
+        for vertice in grafo_t.vertices.values():
+            vertice.cor = 'Branco'
+            
+        todos_os_cfcs = []
+        
+        # FASE 3: 
+        #Varre a lista seguindo estritamente a ordem do maior tempo 'f' para o menor.
+        for v_id in ordem_de_busca:
+            vertice_t = grafo_t.vertices[v_id]
+            
+            # Se o vértice no grafo transposto ainda é inédito, ele é a raiz de um novo CFC.
+            if vertice_t.cor == 'Branco':
+                cfc_atual = []  # Cria a "gaveta" para este componente
+                
+                # Inicia a busca recursiva APENAS a partir deste vértice específico
+                grafo_t._dfs_visit_captura(vertice_t, cfc_atual)
+                
+                # Após a recursão não ter mais para onde ir (bateu nas paredes invertidas),
+                # o componente está formado e o guardamos no resultado final.
+                todos_os_cfcs.append(cfc_atual)
+                
+        return todos_os_cfcs
+
+
+    def _dfs_visit_captura(self, u, cfc_atual):
+        """
+        Função semelhante à DFS, mas focada apenas em agrupar os vértices 
+        do componente sem precisar se preocupar com o relógio temporal.
+        """
+        u.cor = 'Cinza'            # Marca como em processamento
+        cfc_atual.append(u.id)     # Guarda o ID do vértice capturado no grupo
+        
+        lista_adj = self.Adj[u.id]
+        
+        for v in lista_adj:
+            if v.cor == 'Branco':
+                self._dfs_visit_captura(v, cfc_atual)
+                
+        u.cor = 'Preto'            # Finaliza o vértice
 
                 
             
@@ -311,6 +371,78 @@ def executar_testes_buscas():
         vizinhos = [v.id for v in g_transposto.Adj[u]]
         if vizinhos:
             print(f"{u} aponta para: {vizinhos}")
+
+
+    print("\n" + "="*60)
+    print("TESTE 5: COMPONENTES FORTEMENTE CONECTADOS (Kosaraju)")
+    print("="*60)
+    # Grafo direcionado com 3 "bolhas" (ciclos) conectadas por pontes de mão única
+    g_cfc = Grafo(direcionado=True)
+    arestas_cfc = [
+        # Componente 1: a, b, c (Ciclo triangular)
+        ('a', 'b'), ('b', 'c'), ('c', 'a'),
+        # Ponte de mão única do Componente 1 para o 2
+        ('c', 'd'),
+        # Componente 2: d, e, f (Ciclo triangular)
+        ('d', 'e'), ('e', 'f'), ('f', 'd'),
+        # Ponte de mão única do Componente 2 para o 3
+        ('f', 'g'),
+        # Componente 3: g, h (Vai e volta duplo)
+        ('g', 'h'), ('h', 'g')
+    ]
+    for u, v in arestas_cfc:
+        g_cfc.adicionar_aresta(u, v)
+
+    cfcs = g_cfc.componente_fortemente_conectado()
+    
+    print(f"Foram encontrados {len(cfcs)} Componentes Fortemente Conectados:")
+    for i, componente in enumerate(cfcs, 1):
+        print(f"CFC {i}: {componente}")
+
+
+    print("\n" + "="*60)
+    print("TESTE 6: BUSCA EM LARGURA (BFS) - Grafo Desconexo")
+    print("="*60)
+    # Verificando como a BFS lida com vértices inatingíveis a partir da origem
+    g_bfs_desc = Grafo(direcionado=False)
+    arestas_bfs_desc = [
+        ('A', 'B'), ('A', 'C'), # Ilha principal
+        ('D', 'E'),             # Ilha isolada 1
+        ('F', 'G')              # Ilha isolada 2
+    ]
+    for u, v in arestas_bfs_desc:
+        g_bfs_desc.adicionar_aresta(u, v)
+        
+    g_bfs_desc.adicionar_vertice('H') # Vértice completamente solto
+
+    origem_desc = 'A'
+    g_bfs_desc.busca_em_largura(origem_desc)
+    
+    print(f"Distâncias a partir da origem '{origem_desc}' (Testando isolamento):")
+    for id_v, vertice in g_bfs_desc.vertices.items():
+        distancia = vertice.d if vertice.d != float('inf') else 'Inatingível (Infinito)'
+        pai = vertice.pi.id if vertice.pi else 'None'
+        print(f"Vértice {id_v} | Distância: {distancia} | Pai: {pai}")
+
+
+    print("\n" + "="*60)
+    print("TESTE 7: FLORESTA DFS - Múltiplas Árvores no mesmo Grafo")
+    print("="*60)
+    # Testando o motor da DFS em uma rede totalmente fragmentada
+    g_floresta = Grafo(direcionado=True)
+    arestas_floresta = [
+        ('1', '2'), ('2', '3'), # Árvore 1 (Linha reta)
+        ('4', '5'), ('4', '6'), # Árvore 2 (Bifurcação)
+        ('7', '7')              # Árvore 3 (Auto-ciclo isolado)
+    ]
+    for u, v in arestas_floresta:
+        g_floresta.adicionar_aresta(u, v)
+
+    g_floresta.dfs_principal()
+    
+    print("Tempos [d / f] provando a criação de 3 árvores distintas:")
+    for id_v, vertice in g_floresta.vertices.items():
+        print(f"Vértice {id_v} | d: {vertice.d:02d} | f: {vertice.f:02d} | Cor: {vertice.cor}")
 
 
 if __name__ == "__main__":
@@ -627,27 +759,115 @@ usando duas rodadas de DFS separadas por uma inversão espacial.
 
 
 """
-STRONGLY_CONNECTED_COMPONENTS(G):
-    # FASE 1: O Mapeamento
-    # Custo: O(V + E)
-    Executar DFS_PRINCIPAL(G) para computar os tempos de finalização u.f 
-    para cada vértice u.
-    
-    # FASE 2: A Inversão
-    # Custo: O(V + E)
-    Computar o Grafo Transposto G_T.
-    
-    # FASE 3: A Varredura Restritiva
-    # Custo: O(V + E)
-    # Precisamos zerar as cores do novo grafo G_T para Brancas antes da busca.
-    Executar DFS_PRINCIPAL_MODIFICADA(G_T) com uma única alteração no 
-    laço principal:
-        Em vez de selecionar os vértices aleatoriamente, o laço "Para cada 
-        vértice u" DEVE testar os vértices na ordem estritamente DECRESCENTE
-        dos tempos 'u.f' calculados na Fase 1.
-        
-    # FASE 4: O Resultado
-    Cada "Floresta/Árvore" que nascer e morrer separadamente durante a 
-    FASE 3 constitui uma Componente Fortemente Conectada isolada.
+Pseudocódigo fortemente conectado
+
+COMPONENTE_FORTEMENTE_CONECTADO(G):
+1.  Crie uma estrutura para guardar a ordem de finalização (uma pilha/deque).
+2.  Execute uma DFS completa no grafo original G.
+    - Sempre que um vértice terminar de ser processado (ficar 'Preto'), insira o ID dele na CABEÇA da pilha.
+    - (Dica: Seu método _dfs_visit_topologico já faz exatamente isso).
+
+3.  G_T = G.gerar_grafo_transposto()
+
+4.  Prepare o terreno em G_T: marque todos os vértices de G_T como 'Branco'.
+5.  Crie uma lista vazia chamada 'todos_os_cfcs' para guardar os resultados finais.
+
+6.  Enquanto a pilha de finalização não estiver vazia:
+7.      u_id = remova o ID do topo da pilha (o de maior tempo 'f')
+8.      vertice_u = acesse o vértice 'u_id' dentro de G_T
+
+9.      Se vertice_u.cor == 'Branco':
+10.         Crie uma nova lista 'cfc_atual' para guardar os membros deste grupo.
+11.         Chame DFS_VISIT_CFC(G_T, vertice_u, cfc_atual)
+            - Essa é uma DFS normal, mas que adiciona o ID de cada vértice visitado na lista 'cfc_atual'.
+12.         Adicione 'cfc_atual' dentro da lista 'todos_os_cfcs'.
+
+13. Retorne 'todos_os_cfcs'.
+
+
+"""
+
+
+"""
+Execução do algoritmo
+
+======================================================================
+O GRAFO ORIGINAL (G)
+======================================================================
+      
+      [A] ----> [B]
+       ^         |
+       |         v
+        <------[C] ====> [D]
+
+      (Ciclo: A, B, C)      (Ponte de mão única C -> D)
+
+A.d = 1
+B.d = 2
+C.d = 3
+D.d = 4
+D.f = 5
+C.f = 6
+B.f = 7
+A.f = 8
+
+
+
+      
+======================================================================
+O GRAFO TRANSPOSTO (G_T)
+======================================================================
+
+      [A] <---- [B]
+       |         ^
+       v         |
+        ------> [C] <==== [D]
+
+   (O ciclo continua)     (A PONTE INVERTEU: D agora aponta para C)
+
+
+
+FASE 3: A Captura (A DFS Presa em G_T)
+Agora irá ser aplicado a busca em profundidade em um nó específico(aquele que tem o maior tempo)
+
+Passo 1: Começamos pelo topo da pilha (A)
+
+O algoritmo cria a lista CFC_1 = [].
+
+Ele inicia a DFS no grafo transposto a partir de A.
+
+A vai para C.
+
+C vai para B.
+
+B tenta ir para A, mas já está visitado.
+A busca encerra, encurralada pela inversão.
+
+Resultado: CFC_1 = ['A', 'C', 'B'] (Todos os vértices ficam Pretos).
+
+Passo 2: Próximos da pilha (B e C)
+
+O algoritmo puxa B da pilha. B já está Preto (foi capturado no Passo 1). Ele pula.
+
+O algoritmo puxa C. C já está Preto. Pula.
+
+Passo 3: O fundo da pilha (D)
+
+O algoritmo puxa D da pilha. Ele ainda está Branco.
+
+O algoritmo cria a lista CFC_2 = [].
+
+Ele inicia a DFS a partir de D.
+
+D tenta ir para C (lembre-se, a seta invertida aponta para C).
+Porém, C já está Preto (já pertence a outro componente)! A busca não entra.
+
+A busca encerra instantaneamente.
+
+Resultado: CFC_2 = ['D'].
+
+O Retorno Final do Algoritmo:
+[['A', 'C', 'B'], ['D']]
+
 
 """
