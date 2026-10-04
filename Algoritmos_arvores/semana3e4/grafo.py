@@ -273,10 +273,7 @@ class Grafo:
                 
         u.cor = 'Preto'            # Finaliza o vértice
 
-                
-            
-        
-
+   
 
 
 
