@@ -18,7 +18,7 @@ class Grafo:
         # O array principal de Listas de Adjacência (id -> lista de objetos Vertice)
         #chave=id valor->lista de adjacencia do vértice
         self.Adj = {}      
-
+        self.arestas=0
     def adicionar_vertice(self, id):
         """Instancia e registra um vértice no grafo caso ele não exista."""
         if id not in self.vertices:
@@ -46,6 +46,8 @@ class Grafo:
         #Se for Grafo Não Direcionado, exige a ligação reversa obrigatória
         if not self.direcionado:
             self.Adj[v].append(vertice_u)
+            self.arestas.append+=1
+        
 
     
 
@@ -256,6 +258,11 @@ class Grafo:
                 
         return todos_os_cfcs
 
+    """
+    o que garante que esse código pegue realmente o ciclo é pegar sempre o vértice que tem maior tempo f
+    o vértice que inicia muda de cor ,então não será processado dnv
+    """
+
 
     def _dfs_visit_captura(self, u, cfc_atual):
         """
@@ -273,6 +280,23 @@ class Grafo:
                 
         u.cor = 'Preto'            # Finaliza o vértice
 
+    def vertice_mais_conectado(self):
+        chave_melhor = None
+        maior_numero_conexoes = -1
+
+        # Varre o dicionário de adjacências
+        for chave, lista_vizinhos in self.Adj.items():
+            quantidade_atual = len(lista_vizinhos) # Mede quantas conexões o vértice tem
+            
+            # Se encontrou um vértice com mais conexões que o recorde anterior
+            if quantidade_atual > maior_numero_conexoes:
+                maior_numero_conexoes = quantidade_atual
+                chave_melhor = chave
+
+        # Retorna o ID do vértice vencedor e quantas conexões ele possui
+        return chave_melhor, maior_numero_conexoes
+
+        
    
 
 
