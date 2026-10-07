@@ -524,3 +524,7 @@ if __name__ == "__main__":
     # Validação da Modularização
     assert getInfo(ponto_partida_3) == 80
     print("Caso 3 (Teste 3): Nodo interno removido. Retorno correto aponta para o nodo 80.")
+
+
+
+

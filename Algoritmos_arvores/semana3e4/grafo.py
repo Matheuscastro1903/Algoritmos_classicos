@@ -18,7 +18,7 @@ class Grafo:
         # O array principal de Listas de Adjacência (id -> lista de objetos Vertice)
         #chave=id valor->lista de adjacencia do vértice
         self.Adj = {}      
-        self.arestas=0
+        
     def adicionar_vertice(self, id):
         """Instancia e registra um vértice no grafo caso ele não exista."""
         if id not in self.vertices:
@@ -46,7 +46,7 @@ class Grafo:
         #Se for Grafo Não Direcionado, exige a ligação reversa obrigatória
         if not self.direcionado:
             self.Adj[v].append(vertice_u)
-            self.arestas.append+=1
+            
         
 
     
@@ -152,6 +152,8 @@ class Grafo:
         for vertice in self.vertices.values():
             vertice.cor = 'Branco'
             vertice.pi = None
+            vertice.d=None
+            vertice.f=None
             
         self.tempo = 0
         
@@ -321,7 +323,7 @@ def executar_testes_buscas():
     for u, v in arestas_bfs:
         g_bfs.adicionar_aresta(u, v)
 
-    origem = 's'
+    origem = 'r'
     g_bfs.busca_em_largura(origem)
     
     print(f"Distâncias a partir da origem '{origem}':")
