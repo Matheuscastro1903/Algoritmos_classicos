@@ -57,24 +57,46 @@ class Grafo:
         
         # Cria um mapeamento de ID do vértice para um índice numérico (0 até n-1)
         # Necessário pois matrizes operam com índices sequenciais rígidos.
-        mapa_indices = {v_id: i for i, v_id in enumerate(sorted(self.vertices))}
+        mapa_indices = {}
+        #ordena os vértices pelo indice
+        vertices_ordenados = sorted(self.vertices)
+
+        #ele transforma uma lista de elementos em uma lista de pares contendo (índice, elemento).
+        #• (0, "Ana"), (1, "Bruno"), (2, "Carlos").
+
+        for i, v_id in enumerate(vertices_ordenados):
+            mapa_indices[v_id] = i
+
         
         # Inicializa a matriz W de tamanho n x n preenchida com infinito (ausência de aresta)
-        W = [[float('inf')] * n for _ in range(n)]
+        #vai add o valor de infinito na disposição da matriz de n por n
+        W = []
+        for _ in range(n):
+            linha = []
+            for _ in range(n):
+                linha.append(float('inf'))
+            W.append(linha)
+
         
-        # Regra 1: A distância de um vértice para ele mesmo é rigorosamente 0
+        #Regra 1: A distância de um vértice para ele mesmo é rigorosamente 0
         for i in range(n):
             W[i][i] = 0
             
-        # Regra 2: Preenche os custos das arestas existentes
+        #Regra 2: Preenche os custos das arestas existentes
+        #self.items retorna chave valor
         for u_id, vizinhos in self.Adj.items():
+            #pega o indice de u(origem) que foi traduzido no mapa de indices
             idx_u = mapa_indices[u_id]
+            #vizinhos é a lista que possui as tuplas do vértice e o peso no dicionário de Adj
             for vertice_v, peso in vizinhos:
+                #pega o indice de v que foi traduzido no mapa de indice
                 idx_v = mapa_indices[vertice_v.id]
                 
                 # Regra de proteção: Se houver arestas paralelas, mantemos a de menor peso
+                #colocando os valores de u-->v //utiliza min para caso tenha arestas paralelas adicionadas antes
                 W[idx_u][idx_v] = min(W[idx_u][idx_v], peso)
-                
+
+        #retorna a matriz W(primeira matriz feita) e o mapa dos indices
         return W, mapa_indices
 
     def extend_shortest_paths(self, L, W):
@@ -83,26 +105,52 @@ class Grafo:
         já conhecidas (L) com os pesos originais do grafo (W).
         Custo Operacional: Θ(n^3)
         """
+        #
         n = len(L)
+
         
-        # Linha 2: Cria a nova matriz L' preenchida inteiramente com infinito
-        L_linha = [[float('inf')] * n for _ in range(n)]
+        L_linha = []
+        #construção da matriz Linha
+        for _ in range(n):
+            #*n é apra retpetir flotInf n vezes
+            L_linha.append([float('inf')] * n)
+
         
         # Linhas 3 e 4: Seleciona a Origem (i) e o Destino (j)
         for i in range(n):
             for j in range(n):
+                #for dentro de for para interar linhas-->colunas
                 
                 # Linha 6: Testa todos os vértices intermediários (k) como escalas
                 for k in range(n):
+                    #valor de k atua apenas como um guardador de valores dos indices mapeados anteriormente
                     
-                    # Linha 7: A Equação de Recorrência
+                    # A Equação de Recorrência
                     # L_linha[i][j] guarda o melhor recorde descoberto até agora
                     # L[i][k] + W[k][j] é a tentativa de rota passando por 'k'
+                    #esse valor W é apenas como foi chamado,mas se trata de uma cópia de L
                     nova_rota = L[i][k] + W[k][j]
                     
                     if nova_rota < L_linha[i][j]:
                         L_linha[i][j] = nova_rota
-                        
+
+        #os valores ótimos registrados antes serão readicionados em L linha a partir do loop que usa k
+        
+        """
+        No fim de tudo o m serve apenas para verificar qual interação nós realmente estamos,
+        pois não há uma contgem direta de fato
+
+        i-->j
+
+        i--> k + k-->j
+
+        i-->k--m + m-->p-->j
+
+        esse aumento na quantidade de arestas é feito no descobrimento de novos caminhos
+        por conta da ideia de que uma resposta ótima é feita a partir de subrespostas ótimas
+
+        """
+        #o retorno de L_linha vai para a variável L
         return L_linha
 
 
@@ -112,16 +160,19 @@ class Grafo:
         utilizando Programação Dinâmica com Exponenciação Sucessiva.
         Custo Operacional: Θ(V^3 lg V)
         """
-        # 1. Extrai a planta baixa estática (W) e o tradutor de IDs
+        #pega a primeira matriz com pesos e o mapa com os indices 
         W, mapa_indices = self.gerar_matriz_pesos_W()
+        #lendo o número de linhas de W(que é igual ao número de vértices)-->[[...], [...], ...]
         n = len(W)
         
         # 2. Inicializa a memória dinâmica (L) com as conexões diretas (1 aresta)
+        #faz uma copia de W em L
         L = W
         m = 1
         
-        # 3. O motor de dobragem logarítmica
-        # O limite n - 1 representa o maior caminho simples possível no grafo
+        #O motor de dobragem logarítmica
+        #O limite n - 1 representa o maior caminho simples possível no grafo
+        #não pode existir um caminho que tenha a mesma quantidade ou mais que as arestas disponíveis
         while m < n - 1:
             # Cruza a matriz com ela mesma para dobrar o raio de busca
             L = self.extend_shortest_paths(L, L)
@@ -153,9 +204,7 @@ def executar_testes_multiplas_fontes():
         (5, 4, 6)
     ]
     
-    # Adaptação para suportar o peso na adição.
-    # Certifique-se de que a sua função 'adicionar_aresta' esteja aceitando o 3º parâmetro
-    # e guardando-o na lista de adjacência, ex: self.Adj[u].append((vertice_v, peso))
+    
     for origem, destino, peso in arestas_slide_26:
         g_multi.adicionar_aresta(origem, destino, peso)
         
@@ -253,3 +302,100 @@ FASTER-ALL-PAIRS-SHORTEST-PATHS(W)
 7  return L
 """
 
+
+
+# ==============================================================================
+# APLICAÇÃO PRÁTICA DA SUA ANOTAÇÃO COM MATRIZ DE 5 VÉRTICES (0, 1, 2, 3, 4)
+# ==============================================================================
+#
+# BASEADO NA SUA ANOTAÇÃO:
+# ------------------------------------------------------------------------------
+# "No fim de tudo o m serve apenas para verificar qual interação nós realmente estamos,
+#  pois não há uma contagem direta de fato.
+#  i --> j
+#  i --> k + k --> j
+#  i --> k -- m + m --> p --> j
+#  esse aumento na quantidade de arestas é feito no descobrimento de novos caminhos
+#  por conta da ideia de que uma resposta ótima é feita a partir de subrespostas ótimas"
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# CENÁRIO DO EXEMPLO REAL (Grafo de 5 vértices: 0, 1, 2, 3, 4)
+# Queremos ir do Vértice Origem (i = 0) até o Vértice Destino (j = 4).
+#
+# Arestas reais e custos diretos no grafo:
+# - (0 -> 4) = 20  [Voo direto caro]
+# - (0 -> 1) = 1   |  (1 -> 2) = 2
+# - (2 -> 3) = 1   |  (3 -> 4) = 1
+#
+# O menor caminho real de 0 para 4 tem 4 ARESTAS:
+# (0 -> 1 -> 2 -> 3 -> 4) com custo total = 1 + 2 + 1 + 1 = 5.
+# ------------------------------------------------------------------------------
+
+#L no estado inicial seria a cópia de W(matriz apenas com pesos diretos)
+
+# ==============================================================================
+# ESTADO INICIAL: W = L^(1) (Matriz com no máximo m = 1 aresta)
+# ==============================================================================
+# O parâmetro 'm' começa em 1. Ele só sinaliza: "nossas respostas atuais cobrem 1 aresta".
+#
+# L_1[0][4] = 20  (Aresta direta 0 -> 4)
+# L_1[0][2] = inf (Não há aresta direta de 0 para 2)
+# L_1[2][4] = inf (Não há aresta direta de 2 para 4)
+
+#retorna esses novos valores para L
+
+# ==============================================================================
+# ITERAÇÃO 1 DO WHILE (m passa de 1 para 2)
+# Executa: L_2 = extend_shortest_paths(L_1, L_1)
+# ==============================================================================
+# Como diz sua anotação: i --> k + k --> j
+# Aqui combinamos duas subrespostas de 1 aresta (L_1 + L_1).
+#
+# Exemplo do cálculo para o subproblema L_2[0][2] (Origem 0 até Escala 2):
+# Testa k = 1 como ponto intermediário:
+# nova_rota = L_1[0][1] + L_1[1][2]
+# nova_rota = 1 + 2 = 3
+# Resultado salvo: L_2[0][2] = 3   <-- Subresposta ótima para (0 -> 2) com até 2 arestas!
+#
+# Exemplo do cálculo para o subproblema L_2[2][4] (Escala 2 até Destino 4):
+# Testa k = 3 como ponto intermediário:
+# nova_rota = L_1[2][3] + L_1[3][4]
+# nova_rota = 1 + 1 = 2
+# Resultado salvo: L_2[2][4] = 2   <-- Subresposta ótima para (2 -> 4) com até 2 arestas!
+#
+# OBSERVAÇÃO DESSA ITERAÇÃO:
+# Para o par final (0 -> 4), a melhor combinação em L_2 ainda é 20 (pois não há
+# como ir de 0 a 4 usando APENAS 2 arestas).
+
+#novos resultados são retornandos para o valor L que será interad novamente posteriormente
+
+
+# ==============================================================================
+# ITERAÇÃO 2 DO WHILE (m passa de 2 para 4)
+# Executa: L_4 = extend_shortest_paths(L_2, L_2)
+# ==============================================================================
+# Como diz sua anotação: "esse aumento na quantidade de arestas é feito no
+# descobrimento de novos caminhos por conta da ideia de que uma resposta ótima
+# é feita a partir de subrespostas ótimas"
+#
+# Agora juntamos duas SUBRESPOSTAS ÓTIMAS calculadas na iteração anterior (L_2 + L_2)!
+#
+# Vamos calcular o caminho final L_4[0][4] (Origem i=0 para Destino j=4):
+# O laço 'for k' testa a escala k = 2:
+#
+# nova_rota = L_2[0][2]           +  L_2[2][4]
+#            (Subresposta ótima 1)    (Subresposta ótima 2)
+# nova_rota = 3                   +  2
+# nova_rota = 5
+#
+# Como 5 < 20 (o recorde anterior), a célula L_4[0][4] é ATUALIZADA para 5!
+#
+# CONCLUSÃO DO PROCESSO:
+# Ao fundir a subresposta ótima (0 -> 2 = custo 3) com a subresposta ótima (2 -> 4 = custo 2),
+# a matriz descobriu o menor caminho global de 4 arestas (custo 5)
+# sem precisar testar aresta por aresta individualmente!
+
+
+#juntamos subcaminhos para ir foramando um novo caminho para o que queremos achar e só substitui se o valor for menor do que o registrado antes
+# ==============================================================================
