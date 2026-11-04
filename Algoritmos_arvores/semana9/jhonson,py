@@ -1,0 +1,259 @@
+import heapq
+
+class Vertice:
+    def __init__(self, id):
+        self.id = id
+        self.cor = 'Branco'
+        self.pi = None
+        self.d = float('inf')
+
+    def __repr__(self) -> str:
+        return f'Vertice({self.id})'
+
+
+class Grafo:
+    def __init__(self, direcionado=True):
+        self.direcionado = direcionado
+        self.vertices = {}
+        self.Adj = {}
+
+    def adicionar_vertice(self, id):
+        if id not in self.vertices:
+            novo_vertice = Vertice(id)
+            self.vertices[id] = novo_vertice
+            self.Adj[id] = []
+
+    def adicionar_aresta(self, u, v, peso):
+        self.adicionar_vertice(u)
+        self.adicionar_vertice(v)
+
+        vertice_u = self.vertices[u]
+        vertice_v = self.vertices[v]
+
+        self.Adj[u].append((vertice_v, peso))
+
+        if not self.direcionado:
+            self.Adj[v].append((vertice_u, peso))
+
+    def relaxar(self, u, v, peso_uv):
+        if v.d > u.d + peso_uv:
+            v.d = u.d + peso_uv
+            v.pi = u
+
+    def dijkstra(self, origem_id):
+        for v_id, vertice in self.vertices.items():
+            vertice.d = float('inf')
+            vertice.pi = None
+
+        origem = self.vertices[origem_id]
+        origem.d = 0
+
+        filaQprioridade = [(0, origem_id)]
+
+        while len(filaQprioridade) > 0:
+            distancia_atual, u_id = heapq.heappop(filaQprioridade)
+            vertice_u = self.vertices[u_id]
+
+            #Ignora duplicatas desatualizadas)
+            #Se extrairmos um caminho velho que já foi superado, apenas pulamos.
+            if distancia_atual > vertice_u.d:
+                continue
+
+            for vertice_v, peso in self.Adj[u_id]:
+                distancia_antiga = vertice_v.d #valor pré setado antes
+                self.relaxar(vertice_u, vertice_v, peso) #ó irá relaxar aqueles vértices adjacentes ao vértice da interação
+
+                #atualiza os valores e coloca no final da fila de prioridade
+                if vertice_v.d < distancia_antiga:
+                    #adiciona esse novo valor pq pode servir de ponte para outro
+                    #os valores interados no while após as primeiras interaçõessão valores já computados,iremos computar seus adjcentes
+                    heapq.heappush(filaQprioridade, (vertice_v.d, vertice_v.id))
+
+        resultado = []
+        for destino_id, vertice_destino in self.vertices.items():
+            if vertice_destino.d != float('inf'):
+                caminho = []
+                atual = vertice_destino
+                while atual is not None:
+                    caminho.append(atual.id)
+                    atual = atual.pi
+                caminho.reverse()
+
+                resultado.append({'origem': origem_id,'destino': destino_id,'custo': vertice_destino.d,'rota': " -> ".join(map(str, caminho))})
+
+        return resultado
+
+    def bellman_ford(self, origem_id):
+        for v_id, vertice in self.vertices.items():
+            vertice.d = float('inf')
+            vertice.pi = None
+
+        self.vertices[origem_id].d = 0
+        total_vertices = len(self.vertices)
+
+        for _ in range(total_vertices - 1):
+            #caso o primeiro vértice analisado seja logo o vértice fantasma
+            #já encontrames o valor de 0 para todos,só alterando caso tenha arestas negativos,
+            # estou correto ,?? e após terminar todas as alterações 
+            # só diminui novamente caso tenha ciclo de aresta negativa 
+            for u_id, vizinhos in self.Adj.items():
+                vertice_u = self.vertices[u_id]
+                #evita fazer cálculos desnecessários para vértices ainda não mapeados pela origem(não tem ligação direta ou 
+                # não chegou algum intermediário)
+                if vertice_u.d == float('inf'):
+                    continue
+                for vertice_v, peso in vizinhos:
+                    #irá relaxar apenas se o valor já mapeado de u vindo da origem + o peso de u-->v for menor que o peso atual
+                    #nesse primeiro relaxamente,todos irão virar zero e só irá alterar aqueles que não 
+                    self.relaxar(vertice_u, vertice_v, peso)
+
+        for u_id, vizinhos in self.Adj.items():
+            vertice_u = self.vertices[u_id]
+            #se o vértice tem .d(valor de distancia em relação a origem) então ele nunca foi mapeado 
+            # logo não precisa calculalo
+            if vertice_u.d == float('inf'):
+                continue
+            for vertice_v, peso in vizinhos:
+                # Se ainda é possível encontrar um caminho menor, existe um ciclo negativo
+                # ou seja estaria diminuindo toda vez que passa pelo caminho
+                if vertice_v.d > vertice_u.d + peso:
+                    #possui
+                    return False
+
+        resultado = []
+        for destino_id, vertice_destino in self.vertices.items():
+            if vertice_destino.d != float('inf'):
+                caminho = []
+                atual = vertice_destino
+                while atual is not None:
+                    caminho.append(atual.id)
+                    atual = atual.pi
+                caminho.reverse()
+
+                resultado.append({
+                    'origem': origem_id,
+                    'destino': destino_id,
+                    'custo': vertice_destino.d,
+                    'rota': " -> ".join(map(str, caminho))
+                })
+
+        return resultado
+
+    def johnson(self):
+        """
+        Algoritmo de Johnson para menores caminhos entre TODOS os pares.
+        Complexidade: O(V² log V + VE)
+        """
+        s_id = '__s__'
+
+        # ------------------------------------------------------------------
+        # PASSO 1: INSERÇÃO DO VÉRTICE VIRTUAL 's'
+        # ------------------------------------------------------------------
+        self.adicionar_vertice(s_id)
+        # Cria aresta direcionada de peso 0 de 's' para todos os nós
+        for v_id in list(self.vertices.keys()):
+            #se v_id for diferente de s_id,adiciona v_id como vértice adjacente de s
+            if v_id != s_id:
+                self.Adj[s_id].append((self.vertices[v_id], 0))
+
+        # ------------------------------------------------------------------
+        # PASSO 2: BELLMAN-FORD A PARTIR DE 's' (FUNÇÃO POTENCIAL h)
+        # ------------------------------------------------------------------
+        bf_resultado = self.bellman_ford(s_id)
+        #se o resultado cair no False,então possui ciclos com pesos negativos
+        #algoritmo de Johnson é projetado especificamente para aceitar arestas com pesos negativos, 
+        # mas não funciona em grafos que contêm ciclos de peso negativo.
+        if bf_resultado is False:
+            del self.vertices[s_id]
+            del self.Adj[s_id]
+            raise ValueError("O grafo contém um ciclo de peso negativo!")
+
+        # h[v] = d(s, v)
+        #DICIONÁRIO PARA AS ALTURAS
+        h = {}
+        for v_id in self.vertices:
+            #ADICIONA TODOS QUE NÃO FOREM S
+            if v_id != s_id:
+                #adiciona o peso original do bellman ford saindo de s para todos os vértices
+                h[v_id] = self.vertices[v_id].d
+
+        # Remove o nó 's' temporário
+        del self.vertices[s_id]
+        del self.Adj[s_id]
+
+        # ------------------------------------------------------------------
+        # PASSO 3: RE-PONDERAÇÃO DAS ARESTAS: ŵ(u, v) = w(u, v) + h[u] - h[v]
+        # ------------------------------------------------------------------
+        pesos_originais = {}
+        for u_id in self.Adj:
+            #cria uma chave com id e uma lista como valor
+            pesos_originais[u_id] = []
+            novos_vizinhos = []
+            #intera sobre os Adj do u_id da interação
+            for vertice_v, peso in self.Adj[u_id]:
+                #adiciona o peso no dicionário pesos_originais
+                pesos_originais[u_id].append(peso)
+                #reponderamento é feito pela h(u) - h(v)--> valor para chegar onde realmente queremos(origem,--> vai ser 0 caso não possua nenhum 
+                # valor negativo para chegar) + valor para chegar até v saindo de s
+                #h(u) e h(v) são os valroes calculados pelo bellman ford saindo de s(só será <=0)
+                #repondera
+                peso_chapeu = peso + h[u_id] - h[vertice_v.id]
+                #adiciona na lista uma tupla com os valores atualizados do vértice adjcente(tupla de indice,peso)
+                novos_vizinhos.append((vertice_v, peso_chapeu))
+            #remonta os valores da lista de Adj
+            self.Adj[u_id] = novos_vizinhos
+
+        # ------------------------------------------------------------------
+        # PASSO 4: DIJKSTRA PARA CADA VÉRTICE E CORREÇÃO DAS DISTÂNCIAS
+        # ------------------------------------------------------------------
+        #chamando o dijsktra para todos os vértices
+        resultado_todos_pares = {}
+
+        for u_id in sorted(self.vertices.keys()):
+            rotas_u = self.dijkstra(u_id)
+
+            # d(u, v) = d̂(u, v) - h[u] + h[v]
+            for item in rotas_u:
+                v_id = item['destino']
+                custo_chapeu = item['custo']
+                #ajustando para a escala normal
+                custo_real = custo_chapeu - h[u_id] + h[v_id]
+                item['custo'] = custo_real
+
+            resultado_todos_pares[u_id] = rotas_u
+
+        # ------------------------------------------------------------------
+        # PASSO 5: RESTAURAÇÃO DOS PESOS ORIGINAIS DO GRAFO
+        # ------------------------------------------------------------------
+        for u_id in self.Adj:
+            novos_vizinhos = []
+            for i, (vertice_v, _) in enumerate(self.Adj[u_id]):
+                peso_orig = pesos_originais[u_id][i]
+                novos_vizinhos.append((vertice_v, peso_orig))
+            self.Adj[u_id] = novos_vizinhos
+
+        return resultado_todos_pares
+
+
+if __name__ == '__main__':
+    g = Grafo(direcionado=True)
+    # Arestas do mesmo grafo de teste do Floyd-Warshall
+    arestas = [
+        (1, 2, 3), (1, 3, 8), (1, 5, -4),
+        (2, 4, 1), (2, 5, 7),
+        (3, 2, 4),
+        (4, 1, 2), (4, 3, -5),
+        (5, 4, 6)
+    ]
+    for u, v, w in arestas:
+        g.adicionar_aresta(u, v, w)
+
+    try:
+        resultado = g.johnson()
+        print("=== RESULTADO DO ALGORITMO DE JOHNSON ===")
+        for origem, rotas in resultado.items():
+            print(f"\n--- Origem: {origem} ---")
+            for r in rotas:
+                print(f"  Para {r['destino']}: Custo = {r['custo']} | Rota: {r['rota']}")
+    except ValueError as e:
+        print("Erro:", e)

@@ -307,6 +307,7 @@ class Grafo:
 
 
     def bellman_ford(self, origem_id):
+        #bellman ford tem origem única
         #Inicialização identica aos outros
         for v_id, vertice in self.vertices.items():
             vertice.d = float('inf')
@@ -316,6 +317,10 @@ class Grafo:
         total_vertices = len(self.vertices)
 
         # FASE 2: Espalhamento Exaustivo (V-1 vezes)
+
+        #por ter origem única,o peso de j é p peso de ir de i para j
+        #então se vertice_u=j e vertice_v=p
+        #peso de j já foi calculado+peso de ir para j-->p
         for _ in range(total_vertices - 1):
             for u_id, vizinhos in self.Adj.items():
                 vertice_u = self.vertices[u_id]
