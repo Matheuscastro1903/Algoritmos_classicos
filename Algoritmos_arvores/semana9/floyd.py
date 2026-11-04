@@ -101,9 +101,7 @@
 #   3 [ V(3),   V(0),  V(1),  None ]
 # ==============================================================================
 
-import math
-from collections import deque
-from typing import Dict, List, Optional, Tuple
+INF = float('inf')
 
 
 class Vertice:
@@ -125,9 +123,9 @@ class Grafo:
     self.direcionado = direcionado
 
     # Armazena os objetos Vertice instanciados por chave e valor (id -> objeto Vertice)
-    self.vertices={}
+    self.vertices = {}
     # O array principal de Listas de Adjacência (id -> lista de tuplas (Vertice Destino, Peso))
-    self.Adj= {}
+    self.Adj = {}
 
   def adicionar_vertice(self, id):
     """Instancia e registra um vértice no grafo caso ele não exista."""
@@ -150,140 +148,279 @@ class Grafo:
     if not self.direcionado:
       self.Adj[v].append((vertice_u, peso))
 
-  def floyd_warshall(self,):
-    """Executa o algoritmo de Floyd-Warshall utilizando a estrutura orientada a objetos.
+  # ------------------------------------------------------------------
+  # FLOYD-WARSHALL (programação dinâmica, todos os pares, Θ(V³))
+  # ------------------------------------------------------------------
+
+  def gerar_matriz_pesos_W(self):
+    """
+    Traduz a lista de adjacências (self.Adj) em uma Matriz W (n x n)
+    para o algoritmo de Múltiplas Fontes.
 
     Retorna:
-        - D: Dicionário 2D de menores distâncias (u_id -> v_id -> float)
-        - Pi: Dicionário 2D de predecessores mapeando diretamente para objetos
-        Vertice
+        W     -> matriz de pesos (n x n)
+        ordem -> lista de IDs em ordem crescente (ordem[i] = id do índice i)
     """
-    nodos = list(self.vertices.keys())
-    INF = math.inf
+    n = len(self.Adj)
 
-    # 1. Construção das Matrizes D^0 e Π^0 dinâmicas por ID dos Vértices
-    D: Dict[any, Dict[any, float]] = {
-        u: {v: INF for v in nodos} for u in nodos
-    }
-    Pi: Dict[any, Dict[any, Optional[Vertice]]] = {
-        u: {v: None for v in nodos} for u in nodos
-    }
+    # Mapeamento interno ID -> índice (0..n-1), necessário para indexar a matriz
+    mapa_indices = {}
 
-    # Distância de um nó para ele mesmo é sempre zero
-    for u in nodos:
-      D[u][u] = 0.0
+    # Lista ordenada de IDs: ordem[i] devolve o ID correspondente ao índice i
+    ordem = sorted(self.Adj)
 
-    # Preenchimento das arestas diretas a partir de self.Adj
-    for u in nodos:
-      for vertice_v, peso in self.Adj[u]:
-        v = vertice_v.id
-        if peso < D[u][v]:  # Trata arestas múltiplas mantendo o menor peso
-          D[u][v] = float(peso)
-          Pi[u][v] = self.vertices[u]
+    for i, v_id in enumerate(ordem):
+        mapa_indices[v_id] = i
 
-    # 2. Laços Tríplices de Programação Dinâmica Bottom-Up (k, i, j)
-    for k in nodos:
-      for i in nodos:
-        for j in nodos:
-          if D[i][k] < INF and D[k][j] < INF:
-            if D[i][k] + D[k][j] < D[i][j]:
-              D[i][j] = D[i][k] + D[k][j]
-              # Na relaxação de Floyd-Warshall, o predecessor de j passa a ser
-              # o predecessor de j vindo do caminho que passa por k
-              Pi[i][j] = Pi[k][j]
+    # Inicializa a matriz W (n x n) preenchida com INF (ausência de aresta)
+    W = []
+    for _ in range(n):
+        linha = []
+        for _ in range(n):
+            linha.append(INF)
+        W.append(linha)
 
-    # 3. Verificação de Ciclos de Peso Negativo
-    for v in nodos:
-      if D[v][v] < 0:
-        raise ValueError(
-            f"Ciclo de peso negativo detectado envolvendo o vértice '{v}'."
-        )
+    # Regra 1: distância de um vértice a si mesmo = 0
+    for i in range(n):
+        W[i][i] = 0
 
-    return D, Pi
+    # Regra 2: preenche os custos das arestas existentes
+    # self.Adj.items() devolve pares (id_origem, lista de (Vertice destino, peso))
+    for u_id, vizinhos in self.Adj.items():
+        idx_u = mapa_indices[u_id]
+        for vertice_v, peso in vizinhos:
+            idx_v = mapa_indices[vertice_v.id]
+            # Proteção contra arestas paralelas: mantém o menor peso
+            W[idx_u][idx_v] = min(W[idx_u][idx_v], peso)
 
-  def reconstruir_caminho(self,u_id,v_id,Pi,) :
-    """Reconstrói o caminho mínimo da origem 'u_id' até o destino 'v_id'
+    return W, ordem
 
-    retornando a sequência exata de objetos Vertice.
+  def floyd_warshall(self):
     """
-    if u_id not in self.vertices or v_id not in self.vertices:
-      return []
-    if u_id == v_id:
-      return [self.vertices[u_id]]
-    if Pi[u_id][v_id] is None:
-      return []
+    Calcula o menor caminho entre TODOS os pares de vértices.
 
-    caminho = [self.vertices[v_id]]
-    atual_id = v_id
+    Retorna (D, Pi), ambos indexados por id:
+      D[u][v]  -> peso do menor caminho de u até v (INF se v é inalcançável)
+      Pi[u][v] -> predecessor de v no menor caminho que começa em u (None se u == v
+                  ou se não há caminho)
 
-    while atual_id != u_id:
-      pred_vertice = Pi[u_id][atual_id]
-      if pred_vertice is None:
-        return []
-      atual_id = pred_vertice.id
-      caminho.append(pred_vertice)
+    Levanta ValueError se o grafo contiver ciclo de peso negativo.
+    """
+    W, ordem = self.gerar_matriz_pesos_W()
+    #lê a quantidade de vértices que tem
+    n = len(ordem)
 
+    # D^(0) = W (cópia: não alteramos W)
+    #D vira uma cópia de W
+    D = []
+    for linha in W:
+        D.append(linha[:])
+
+    #constroi a matriz de predecessores colocando none em todos
+    Pi = []
+    for _ in range(n):
+        linha = []
+        for _ in range(n):
+            linha.append(None)
+        Pi.append(linha)
+
+
+
+    for i in range(n):
+      for j in range(n):
+        #caso i seja diferente de j e a conexão for infinita então o pai de ij é i
+        if i != j and W[i][j] < INF:
+          Pi[i][j] = i
+
+
+    # k PRECISA ser o laço mais externo: libera o vértice k como intermediário
+    for k in range(n):
+      for i in range(n):
+        #caso não exista caminho entre i-->k
+        if D[i][k] == INF:  # poda: sem caminho i -> k, o Caso B nunca ajuda
+          continue
+        for j in range(n):
+          #caso não exista caminho entre k-->j
+          if D[k][j] == INF:  # evita somar com infinito
+            continue
+          nova = D[i][k] + D[k][j]  # Caso B: passar por k
+          #se o valor usando K for menor,entra no caso B
+          #Caso contrário não entra no if,indo para o caso a(o que seria o else)
+          if nova < D[i][j]:       
+            D[i][j] = nova
+            Pi[i][j] = Pi[k][j]  #herda o predecessor do trecho k ~> j
+
+    # Ciclo negativo: algum vértice consegue chegar em si mesmo com custo < 0
+    if any(D[i][i] < 0 for i in range(n)):
+      raise ValueError("O grafo contém ciclo de peso negativo")
+
+    # Converte índices em ids para o usuário não precisar conhecer a 'ordem'
+    D_id = {}
+    for i in range(n):
+        id_i = ordem[i]
+        linha_id = {}
+        for j in range(n):
+            id_j = ordem[j]
+            linha_id[id_j] = D[i][j]
+        D_id[id_i] = linha_id
+
+
+    Pi_id = {}
+    for i in range(n):
+        id_i = ordem[i]
+        linha_id = {}
+        for j in range(n):
+            id_j = ordem[j]
+            pred = Pi[i][j]
+            if pred is not None:
+                linha_id[id_j] = ordem[pred]
+            else:
+                linha_id[id_j] = None
+        Pi_id[id_i] = linha_id
+
+    return D_id, Pi_id
+
+  @staticmethod
+  def reconstruir_caminho(Pi, u, v):
+    """
+    Reconstrói o menor caminho u -> v a partir da matriz de predecessores.
+    Retorna a lista de ids [u, ..., v], ou None se não existe caminho.
+    (Versão iterativa do PRINT-ALL-PAIRS-SHORTEST-PATH.)
+    """
+    if u == v:
+      return [u]
+    if Pi[u][v] is None:
+      return None
+
+    caminho = [v]
+    atual = v
+    while atual != u:
+      atual = Pi[u][atual]
+      caminho.append(atual)
     caminho.reverse()
     return caminho
 
-  def imprimir_matrizes(
-      self,
-      D: Dict[any, Dict[any, float]],
-      Pi: Dict[any, Dict[any, Optional[Vertice]]],
-  ):
-    """Exibe as matrizes D e Π formatadas no console."""
-    nodos = list(self.vertices.keys())
 
-    print("\n--- MATRIZ DE DISTÂNCIAS (D) ---")
-    header = f"{'':>8}" + "".join([f"{str(v):>8}" for v in nodos])
-    print(header)
-    for u in nodos:
-      linha = f"{str(u):>8}"
-      for v in nodos:
-        val = D[u][v]
-        str_val = "inf" if val == math.inf else f"{val:.1f}"
-        linha += f"{str_val:>8}"
-      print(linha)
+if __name__ == '__main__':
 
-    print("\n--- MATRIZ DE PREDECESSORES (Π) ---")
-    print(header)
-    for u in nodos:
-      linha = f"{str(u):>8}"
-      for v in nodos:
-        vert = Pi[u][v]
-        str_val = f"V({vert.id})" if vert else "NIL"
-        linha += f"{str_val:>8}"
-      print(linha)
+  # ---------------------------------------------------------------
+  # TESTE 1: grafo possível de executar (tem arestas negativas, mas NÃO tem ciclo negativo)
+  # ---------------------------------------------------------------
+  print('=== TESTE 1: grafo sem ciclo negativo ===')
+  g1 = Grafo(direcionado=True)
+  for u, v, w in [(1, 2, 3), (1, 3, 8), (1, 5, -4), (2, 4, 1), (2, 5, 7),
+                  (3, 2, 4), (4, 1, 2), (4, 3, -5), (5, 4, 6)]:
+    g1.adicionar_aresta(u, v, w)
+
+  try:
+    D, Pi = g1.floyd_warshall()
+    for u in sorted(D):
+      print(f'  de {u}:', [D[u][v] for v in sorted(D[u])])
+    print('  Caminho 1 -> 3:', g1.reconstruir_caminho(Pi, 1, 3), '| custo:', D[1][3])
+  except ValueError as erro:
+    print('  Erro inesperado:', erro)
+
+  # ---------------------------------------------------------------
+  # TESTE 2: grafo com ciclo negativo (1 -> 2 -> 3 -> 1 soma -1)
+  # ---------------------------------------------------------------
+  print('\n=== TESTE 2: grafo com ciclo negativo ===')
+  g2 = Grafo(direcionado=True)
+  g2.adicionar_aresta(1, 2, 2)
+  g2.adicionar_aresta(2, 3, -4)
+  g2.adicionar_aresta(3, 1, 1)
+
+  try:
+    D, Pi = g2.floyd_warshall()
+    print('  Erro: o ciclo negativo não foi detectado!')
+  except ValueError as erro:
+    print('  Ciclo negativo detectado corretamente:', erro)
+
 
 
 # ==============================================================================
-# DEMONSTRAÇÃO DE USO E RECONSTRUÇÃO DE CAMINHOS
+# EXPLICAÇÃO DETALHADA DO ALGORITMO DE FLOYD-WARSHALL
 # ==============================================================================
-if __name__ == "__main__":
-    g = Grafo(direcionado=True)
-
-    # Arestas do Grafo de Exemplo
-    g.adicionar_aresta(0, 1, 3)
-    g.adicionar_aresta(0, 3, 7)
-    g.adicionar_aresta(1, 0, 8)
-    g.adicionar_aresta(1, 2, 2)
-    g.adicionar_aresta(2, 0, 5)
-    g.adicionar_aresta(2, 3, 1)
-    g.adicionar_aresta(3, 0, 2)
-
-    # Execução do Algoritmo
-    D, Pi = g.floyd_warshall()
-
-    # Exibição Formatada
-    g.imprimir_matrizes(D, Pi)
-
-    # Consulta e Reconstrução de Caminhos
-    print("\n--- RECONSTRUÇÃO DE CAMINHOS MINÍMOS ---")
-    origem, destino = 1, 3
-    caminho_objetos = g.reconstruir_caminho(origem, destino, Pi)
-    custo = D[origem][destino]
-    
-    print(f"Caminho Mínimo de {origem} até {destino}:")
-    print(f"  Objetos Vertice: {caminho_objetos}")
-    print(f"  Sequência por ID: {' -> '.join([str(v.id) for v in caminho_objetos])}")
-    print(f"  Custo Total: {custo}")
+#
+# OBJETIVO:
+#   Encontrar o menor caminho entre TODOS os pares de vértices (All-Pairs Shortest Path)
+#   em um grafo ponderado (com suporte a arestas de peso negativo).
+#
+# COMPLEXIDADE:
+#   - Tempo:  Θ(V³) por conta dos três laços aninhados (k, i, j).
+#   - Espaço: Θ(V²) para armazenar as matrizes D (custos) e Pi (predecessores).
+#
+# PRINCIPIO DA PROGRAMAÇÃO DINÂMICA (SUBESTRUTURA ÓTIMA):
+#   Qualquer sub-trecho de um menor caminho é, obrigatoriamente, também um menor caminho.
+#   A cada iteração do laço externo 'k', liberamos o vértice 'k' como um possível
+#   ponto intermediário na rota entre o vértice de origem 'i' e o de destino 'j'.
+#
+# RECORRÊNCIA E CASOS A vs B:
+#   D^(k)[i][j] = min( D^(k-1)[i][j] , D^(k-1)[i][k] + D^(k-1)[k][j] )
+#
+#   - CASO A (D[i][j]): O menor caminho de i até j NÃO passa por k.
+#     O código mantém o valor prévio de D[i][j] se a rota por k não for estritamente menor.
+#   - CASO B (nova = D[i][k] + D[k][j]): O menor caminho de i até j PASSA por k.
+#     Dividimos a rota em duas metades já otimizadas em etapas anteriores (i ~> k e k ~> j).
+#
+# POR QUE 'k' DEVE SER O LAÇO MAIS EXTERNO?
+#   Para resolver o estado 'k', dependemos das soluções completas do estado 'k-1'.
+#   Se 'k' ficasse no laço interno, tentaríamos calcular caminhos usando 'k' sem ter
+#   otimizado previamente todas as sub-rotas entre (i ~> k) e (k ~> j).
+#
+# INICIALIZAÇÃO DA MATRIZ DE PREDECESSORES (Pi):
+#   - Caso Base (antes do laço k):
+#       if i != j and W[i][j] < INF:
+#           Pi[i][j] = i   # Em um salto direto de i -> j, o predecessor de j é i.
+#   - Atualização no Relaxamento:
+#       Pi[i][j] = Pi[k][j]
+#       Não fazemos Pi[i][j] = k pois o trecho de k até j pode conter múltiplos
+#       intermediários (k ~> ... ~> j). Devemos herdar o predecessor imediato de j
+#       na sub-rota que começou em k.
+#
+# PODAS DE SEGURANÇA E DESEMPENHO:
+#   - if D[i][k] == INF: continue  -> Se i não alcança k, k não serve de ponte.
+#   - if D[k][j] == INF: continue  -> Evita somar INF e previne loops inúteis.
+#
+# DETECÇÃO DE CICLO NEGATIVO:
+#   if any(D[i][i] < 0 for i in range(n)): raise ValueError(...)
+#   Se a distância de um vértice para ele mesmo ficar menor que zero, existe um
+#   circuito fechado com soma de pesos negativa (caminho mínimo tende a -infinito).
+#
+# ==============================================================================
+# RASTREIO PASSO A PASSO DA MATRIZ D (EXEMPLO COM 5 VÉRTICES: 0, 1, 2, 3, 4)
+# ==============================================================================
+#
+# Grafo Inicial:
+#   (0) ---2---> (1) ---3---> (2) ---1---> (3) ---4---> (4)
+#    |                                                   ^
+#    +-----------------------20--------------------------+
+#   Aresta direta original (0 -> 2) tem peso 10.
+#
+# Matriz Inicial D^(0) (Apenas arestas diretas, sem intermediários):
+#    i \ j |  0  |  1  |  2  |  3  |  4  |
+#   -------+-----+-----+-----+-----+-----+
+#      0   |  0  |  2  | 10  | INF | 20  |
+#      1   | INF |  0  |  3  | INF | INF |
+#      2   | INF | INF |  0  |  1  | INF |
+#      3   | INF | INF | INF |  0  |  4  |
+#      4   | INF | INF | INF | INF |  0  |
+#
+# Iteração k = 0: Nenhuma rota é encurtada passando por 0.
+#
+# Iteração k = 1 (Libera vértice 1 como intermediário):
+#   - Teste (0 -> 2) via 1: D[0][1] + D[1][2] = 2 + 3 = 5 < 10 (Caso B vence).
+#   Matriz D^(1): D[0][2] passa a ser 5.
+#
+# Iteração k = 2 (Libera vértice 2 como intermediário - Reutiliza sub-rota D[0][2]=5):
+#   - Teste (0 -> 3) via 2: D[0][2] + D[2][3] = 5 + 1 = 6 < INF (Caso B vence).
+#   - Teste (1 -> 3) via 2: D[1][2] + D[2][3] = 3 + 1 = 4 < INF (Caso B vence).
+#   Matriz D^(2): D[0][3] passa a ser 6; D[1][3] passa a ser 4.
+#
+# Iteração k = 3 (Libera vértice 3 como intermediário - Reutiliza sub-rota D[0][3]=6):
+#   - Teste (0 -> 4) via 3: D[0][3] + D[3][4] = 6 + 4 = 10 < 20 (Caso B vence o atalho de peso 20).
+#   - Teste (1 -> 4) via 3: D[1][3] + D[3][4] = 4 + 4 = 8 < INF.
+#   - Teste (2 -> 4) via 3: D[2][3] + D[3][4] = 1 + 4 = 5 < INF.
+#   Matriz D^(3): D[0][4] vira 10; D[1][4] vira 8; D[2][4] vira 5.
+#
+# Iteração k = 4: Vértice 4 não tem saídas; matriz D final estabiliza em D^(3).
+# ==============================================================================

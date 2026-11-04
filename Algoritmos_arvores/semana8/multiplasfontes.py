@@ -61,7 +61,7 @@ class Grafo:
         #ordena os vértices pelo indice
         vertices_ordenados = sorted(self.vertices)
 
-        #ele transforma uma lista de elementos em uma lista de pares contendo (índice, elemento).
+        #enumerate transforma uma lista de elementos em uma lista de pares contendo (índice, elemento).
         #• (0, "Ana"), (1, "Bruno"), (2, "Carlos").
 
         for i, v_id in enumerate(vertices_ordenados):
@@ -135,7 +135,7 @@ class Grafo:
                         L_linha[i][j] = nova_rota
 
         #os valores ótimos registrados antes serão readicionados em L linha a partir do loop que usa k
-        
+
         """
         No fim de tudo o m serve apenas para verificar qual interação nós realmente estamos,
         pois não há uma contgem direta de fato
